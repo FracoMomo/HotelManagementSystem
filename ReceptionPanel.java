@@ -16,7 +16,8 @@ public class ReceptionPanel extends VBox {
         getChildren().addAll(table, Ui.actions(
                 Ui.button("Check In", "check-in", true, () -> updateStatus("Check In")),
                 Ui.button("Check Out", "check-out", false, () -> updateStatus("Check Out")),
-                Ui.button("Record Payment", "record-payment", false, this::recordPayment)));
+                Ui.button("Record Payment", "record-payment", false, this::recordPayment),
+                Ui.button("Apply Damage Fine", "damage-fine", false, () -> PreviewForms.open(this, "Apply Damage Fine", table.getSelectionModel().getSelectedItem(), true))));
         refreshTable();
     }
 

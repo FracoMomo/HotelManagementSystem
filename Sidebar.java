@@ -13,7 +13,7 @@ public class Sidebar extends VBox {
     private static final PseudoClass ACTIVE = PseudoClass.getPseudoClass("active");
     private final Map<Button, String> destinations = new LinkedHashMap<>();
 
-    public Sidebar(Main main) {
+    public Sidebar(Main main, Role role) {
         getStyleClass().add("sidebar");
         setPrefWidth(238);
         setMinWidth(238);
@@ -23,12 +23,21 @@ public class Sidebar extends VBox {
         logo.getStyleClass().add("brand");
         getChildren().add(logo);
 
-        addMenuButton("Dashboard", "Dashboard", "nav-dashboard", main);
-        addMenuButton("Room Availability", "Rooms", "nav-rooms", main);
-        addMenuButton("Reservations", "Reservations", "nav-reservations", main);
-        addMenuButton("Check In / Check Out", "Reception", "nav-reception", main);
-        addMenuButton("Payments", "Reception", "nav-payments", main);
-        addMenuButton("Reports", "Reports", "nav-reports", main);
+        Label identity = new Label(role.label + (role == Role.CUSTOMER ? " · Guest" : " · Demo"));
+        identity.getStyleClass().add("role-label");
+        getChildren().add(identity);
+        if (role != Role.CUSTOMER) addMenuButton("Overview", "Dashboard", "nav-dashboard", main);
+        addMenuButton(role == Role.ADMIN ? "Manage Rooms & Rates" : "Room Availability", "Rooms", "nav-rooms", main);
+        if (role == Role.CUSTOMER) {
+            addMenuButton("Book a Room", "Book", "nav-book", main);
+            addMenuButton("Manage My Booking", "MyBooking", "nav-my-booking", main);
+        } else if (role == Role.RECEPTIONIST) {
+            addMenuButton("Reservations", "Reservations", "nav-reservations", main);
+            addMenuButton("Check In / Check Out", "Reception", "nav-reception", main);
+            addMenuButton("Payments & Damage Fines", "Reception", "nav-payments", main);
+        } else {
+            addMenuButton("Occupancy & Revenue", "Reports", "nav-reports", main);
+        }
 
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
@@ -37,7 +46,10 @@ public class Sidebar extends VBox {
         });
         exit.getStyleClass().add("nav-button");
         exit.setMaxWidth(Double.MAX_VALUE);
-        getChildren().addAll(spacer, exit);
+        Button logout = Ui.button(role == Role.CUSTOMER ? "Back to welcome" : "Sign out", "nav-logout", false, main::showLogin);
+        logout.getStyleClass().add("nav-button");
+        logout.setMaxWidth(Double.MAX_VALUE);
+        getChildren().addAll(spacer, logout, exit);
     }
 
     private void addMenuButton(String text, String page, String id, Main main) {
