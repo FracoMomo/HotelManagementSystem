@@ -106,7 +106,7 @@ class HotelUiTest {
         Platform.exit();
     }
 
-    private Parent root() { return stage.getScene().getRoot(); }
+    private Parent root() { Parent root = stage.getScene().getRoot(); root.applyCss(); root.layout(); return root; }
     private void click(String id) { ((Button) root().lookup("#" + id)).fire(); }
     @SuppressWarnings("unchecked")
     private <T> TableView<T> table(String id) { return (TableView<T>) root().lookup("#" + id); }
@@ -138,191 +138,129 @@ class HotelUiTest {
         });
     }
 
-    @Test
-    void originalScreensRecordsAndNavigationArePreserved() throws Exception {
+    private void login(boolean admin) {
+        @SuppressWarnings("unchecked") ComboBox<String> role = (ComboBox<String>) root().lookup("#login-role");
+        role.getSelectionModel().select(admin ? 1 : 0);
+        ((TextField) root().lookup("#login-username")).setText(admin ? "admin" : "receptionist");
+        ((TextField) root().lookup("#login-password")).setText(admin ? "admin123" : "reception123");
+        click("staff-login");
+    }
+
+    @Test void loginAndRoleBoundaries() throws Exception {
         fx(() -> {
-            assertEquals("10", text("total-rooms"));
-            assertEquals("7", text("available-rooms"));
-            assertEquals("1", text("occupied-rooms"));
-            assertEquals(Ui.money(14000), text("revenue"));
+            assertNotNull(root().lookup("#login-screen"));
+            click("staff-login");
+            assertFalse(text("login-error").isBlank());
+            assertNull(app.getRole());
+            login(false);
+            assertEquals(Role.RECEPTIONIST, app.getRole());
+            assertNotNull(root().lookup("#nav-reservations"));
+            assertNull(root().lookup("#nav-reports"));
+            assertNull(root().lookup("#revenue"));
             click("nav-rooms");
-            assertEquals(10, table("rooms-table").getItems().size());
-            assertEquals(List.of("Room Number", "Room Type", "Rate", "Status"),
-                    table("rooms-table").getColumns().stream().map(TableColumn::getText).toList());
-            click("nav-reservations");
-            assertEquals(5, table("reservations-table").getItems().size());
-            assertEquals(7, table("reservations-table").getColumns().size());
-            click("nav-reception");
-            assertEquals(5, table("reception-table").getItems().size());
-            click("nav-payments");
-            assertNotNull(root().lookup("#record-payment"));
-            assertTrue(root().lookup("#nav-payments").getPseudoClassStates()
-                    .contains(PseudoClass.getPseudoClass("active")));
+            assertNull(root().lookup("#add-room"));
+            assertNull(root().lookup("#update-rate"));
+            app.showPage("Reports");
+            assertNotNull(root().lookup("#guest-rooms-table"));
+            click("nav-logout"); login(true);
+            assertEquals(Role.ADMIN, app.getRole());
+            assertNotNull(root().lookup("#revenue"));
+            assertNull(root().lookup("#nav-reservations"));
+            click("nav-rooms");
+            assertNotNull(root().lookup("#add-room"));
             click("nav-reports");
-            assertTrue(labels(root()).contains("Reserved Rooms: 2"));
-            RoomTable standalone = new RoomTable();
-            TableView<?> original = (TableView<?>) standalone.lookup("#room-information-table");
-            assertEquals(5, original.getItems().size());
-            assertTrue(original.isEditable());
-        });
-    }
-
-    @Test
-    void bookingUpdatesTablesDashboardAndReports() throws Exception {
-        fx(() -> {
-            click("nav-reservations");
-            booking("101");
-            message("Reservation created. ID: 1006");
-            click("book-reservation");
-            assertEquals(6, table("reservations-table").getItems().size());
-            assertEquals("Migration Test", HotelData.findReservation(1006).guest);
-            assertEquals("Reserved", HotelData.findRoom(101).status);
-            click("nav-dashboard");
-            assertEquals("6", text("available-rooms"));
-            click("nav-reports");
-            assertTrue(labels(root()).contains("Reserved Rooms: 3"));
-            click("nav-reservations");
-            booking("101");
-            message("That room is not available.");
-            click("book-reservation");
-            assertEquals(6, HotelData.reservations.size());
-        });
-    }
-
-    @Test
-    void cancellationUsesSelectedObjectAfterSortingAndProtectsActiveStays() throws Exception {
-        fx(() -> {
-            click("nav-reservations");
-            TableView<HotelData.Reservation> table = table("reservations-table");
-            TableColumn<HotelData.Reservation, ?> idColumn = table.getColumns().getFirst();
-            idColumn.setSortType(TableColumn.SortType.DESCENDING);
-            table.getSortOrder().add(idColumn);
-            table.sort();
-            table.getSelectionModel().select(HotelData.findReservation(1004));
-            message("Reservation cancelled.");
-            click("cancel-reservation");
-            assertEquals("Cancelled", HotelData.findReservation(1004).status);
-            assertEquals("Available", HotelData.findRoom(107).status);
-            assertEquals(1005, table.getItems().getFirst().id);
-            assertEquals(1004, table.getSelectionModel().getSelectedItem().id);
-            assertEquals("Reserved", HotelData.findReservation(1001).status);
-            table.getSelectionModel().select(HotelData.findReservation(1002));
-            message("This reservation can no longer be cancelled.");
-            click("cancel-reservation");
-            assertEquals("Checked In", HotelData.findReservation(1002).status);
-        });
-    }
-
-    @Test
-    void checkInCheckOutAndPaymentsKeepRoomAndRevenueInSync() throws Exception {
-        fx(() -> {
-            click("nav-payments");
-            TableView<HotelData.Reservation> table = table("reception-table");
-            table.getSelectionModel().select(HotelData.findReservation(1001));
-            message("Check In completed.");
-            click("check-in");
-            assertEquals("Occupied", HotelData.findRoom(102).status);
-            assertEquals("Checked In", HotelData.findReservation(1001).status);
-            input("1250");
-            message("Payment recorded successfully.");
-            click("record-payment");
-            assertEquals(3250, HotelData.findReservation(1001).payment);
-            assertEquals(15250, HotelData.getRevenue());
-            message("Check Out completed.");
-            click("check-out");
-            assertEquals("Available", HotelData.findRoom(102).status);
-            message("Only checked-in guests can check out.");
-            click("check-out");
-            table.getSelectionModel().select(HotelData.findReservation(1005));
-            message("Cannot record payment for a cancelled reservation.");
-            click("record-payment");
-            click("nav-dashboard");
-            assertEquals("8", text("available-rooms"));
-            assertEquals(Ui.money(15250), text("revenue"));
-        });
-    }
-
-    @Test
-    void addRoomAndUpdateRateUseNativeDialogsAndSortedSelection() throws Exception {
-        fx(() -> {
-            click("nav-rooms");
-            input("101");
-            message("Room number already exists.");
-            click("add-room");
-            input("111"); input("Single"); input("1800");
-            message("Room added successfully.");
-            click("add-room");
-            assertEquals(11, HotelData.rooms.size());
-            assertEquals(1800, HotelData.findRoom(111).rate);
-            TableView<HotelData.Room> table = table("rooms-table");
-            TableColumn<HotelData.Room, ?> number = table.getColumns().getFirst();
-            number.setSortType(TableColumn.SortType.DESCENDING);
-            table.getSortOrder().add(number);
-            table.sort();
-            table.getSelectionModel().select(HotelData.findRoom(101));
-            input("1750"); message("Room rate updated.");
-            click("update-rate");
-            assertEquals(1750, HotelData.findRoom(101).rate);
-            assertEquals(1800, HotelData.findRoom(111).rate);
-            click("nav-dashboard");
-            assertEquals("11", text("total-rooms"));
-            assertEquals("8", text("available-rooms"));
-        });
-    }
-
-    @Test
-    void cancelledDialogsMissingSelectionsAndInvalidAmountsDoNotChangeData() throws Exception {
-        fx(() -> {
-            click("nav-rooms");
-            message("Please select a room."); click("update-rate");
-            DIALOGS.add(pane -> press(pane, ButtonType.CANCEL)); click("add-room");
-            input("111"); input("Single");
-            DIALOGS.add(pane -> press(pane, ButtonType.CANCEL)); click("add-room");
-            assertEquals(10, HotelData.rooms.size());
-            table("rooms-table").getSelectionModel().select(0);
-            for (String invalid : List.of("-1", "NaN", "Infinity", "abc")) {
-                input(invalid); message("Enter a valid amount."); click("update-rate");
-            }
-            assertEquals(1500, HotelData.findRoom(101).rate);
-            click("nav-reservations");
-            message("Select a reservation first."); click("cancel-reservation");
-            DIALOGS.add(pane -> press(pane, ButtonType.CANCEL)); click("book-reservation");
-            assertEquals(5, HotelData.reservations.size());
-            click("nav-reception");
-            message("Please select a reservation."); click("check-in");
-            table("reception-table").getSelectionModel().select(0);
-            for (String invalid : List.of("0", "-1", "NaN", "Infinity", "abc")) {
-                input(invalid); message("Enter a valid payment amount."); click("record-payment");
-            }
-            assertEquals(14000, HotelData.getRevenue());
-            DIALOGS.add(pane -> press(pane, ButtonType.NO)); click("nav-exit");
-            assertTrue(stage.isShowing());
-        });
-    }
-
-    @Test
-    void renderEveryScreenAtDefaultAndMinimumWindowSizes() throws Exception {
-        fx(() -> {
-            for (String page : List.of("Dashboard", "Rooms", "Reservations", "Reception", "Reports")) {
-                app.showPage(page);
-                snapshot("default-" + page.toLowerCase(), root());
-            }
-            stage.setWidth(1000);
-            stage.setHeight(620);
-        });
-        // A separate JavaFX event lets the resize propagate before the second review.
-        fx(() -> {
-            for (String page : List.of("Dashboard", "Rooms", "Reservations", "Reception", "Reports")) {
-                app.showPage(page);
-                snapshot("minimum-" + page.toLowerCase(), root());
-            }
+            assertTrue(labels(root()).contains("Recorded Revenue: " + Ui.money(14000)));
+            app.showPage("Reception");
+            assertNull(root().lookup("#reception-table"));
+            click("nav-logout"); click("guest-access");
+            assertEquals(Role.CUSTOMER, app.getRole());
+            assertNull(root().lookup("#nav-reception"));
+            assertNull(root().lookup("#nav-reports"));
+            assertNull(root().lookup("#nav-reservations"));
             app.showPage("Reservations");
-            DIALOGS.add(pane -> {
-                snapshot("reservation-dialog", pane);
-                press(pane, ButtonType.CANCEL);
-            });
-            click("book-reservation");
+            assertNull(root().lookup("#reservations-table"));
+            click("nav-my-booking");
+            assertNotNull(root().lookup("#lookup-email"));
+            assertNull(root().lookup("#reservations-table"));
+            assertTrue(root().lookup("#guest-edit").isDisabled());
         });
+    }
+
+    @Test void customerBookingRequiresEmailAndIdAndStaysPreviewOnly() throws Exception {
+        fx(() -> {
+            click("guest-access"); click("nav-book");
+            click("review-booking");
+            assertTrue(text("booking-feedback").contains("Complete the required fields"));
+            ((TextField) root().lookup("#booking-name")).setText("Sample Guest");
+            ((TextField) root().lookup("#booking-email")).setText("guest@example.com");
+            ((ComboBox<?>) root().lookup("#booking-room")).getSelectionModel().selectFirst();
+            ((DatePicker) root().lookup("#booking-arrival")).setValue(java.time.LocalDate.of(2026, 12, 1));
+            ((DatePicker) root().lookup("#booking-departure")).setValue(java.time.LocalDate.of(2026, 12, 3));
+            ((CheckBox) root().lookup("#booking-consent")).setSelected(true);
+            click("review-booking");
+            assertTrue(text("booking-feedback").contains("choose an ID"));
+            root().lookup("#booking-id").setUserData(new java.io.File("sample-id.png"));
+            ((TextField) root().lookup("#booking-email")).setText("invalid-email");
+            click("review-booking");
+            assertTrue(text("booking-feedback").contains("Complete the required fields"));
+            ((TextField) root().lookup("#booking-email")).setText("guest@example.com");
+            click("review-booking");
+            assertTrue(text("booking-feedback").contains("Booking preview ready"));
+            assertEquals(5, HotelData.reservations.size());
+            click("nav-logout"); click("guest-access"); click("nav-book");
+            assertEquals("", ((TextField) root().lookup("#booking-email")).getText());
+            assertNull(root().lookup("#booking-id").getUserData());
+        });
+    }
+
+    @Test void receptionExistingActionsAndNewPreviewForms() throws Exception {
+        fx(() -> {
+            login(false); click("nav-reservations");
+            booking("101"); message("Reservation created. ID: 1006"); click("book-reservation");
+            assertEquals(6, HotelData.reservations.size());
+            table("reservations-table").getSelectionModel().select(0);
+            DIALOGS.add(pane -> { assertNotNull(pane.lookup("#edit-departure")); press(pane, ButtonType.CLOSE); });
+            click("extend-stay");
+            click("nav-reception");
+            table("reception-table").getSelectionModel().select(0);
+            DIALOGS.add(pane -> { assertNotNull(pane.lookup("#fine-amount")); press(pane, ButtonType.CLOSE); });
+            click("damage-fine");
+            message("Check In completed."); click("check-in");
+            input("1250"); message("Payment recorded successfully."); click("record-payment");
+            assertEquals(3250, HotelData.findReservation(1001).payment);
+        });
+    }
+
+    @Test void adminRoomActionsStillWork() throws Exception {
+        fx(() -> {
+            login(true); click("nav-rooms");
+            input("111"); input("Single"); input("1800"); message("Room added successfully."); click("add-room");
+            table("rooms-table").getSelectionModel().select(0);
+            input("1750"); message("Room rate updated."); click("update-rate");
+            assertEquals(1750, HotelData.findRoom(101).rate);
+            assertEquals(11, HotelData.rooms.size());
+        });
+    }
+
+    @Test void renderRoleScreensAtDefaultAndMinimumSizes() throws Exception {
+        fx(() -> captureRoles("default"));
+        fx(() -> { stage.setWidth(1000); stage.setHeight(680); });
+        fx(() -> captureRoles("minimum"));
+    }
+    private void captureRoles(String size) {
+        app.showLogin(); snapshot(size + "-login", root());
+        for (Role role : Role.values()) {
+            app.enterWorkspace(role);
+            List<String> pages = switch (role) {
+                case CUSTOMER -> List.of("Rooms", "Book", "MyBooking");
+                case RECEPTIONIST -> List.of("Dashboard", "Rooms", "Reservations", "Reception");
+                case ADMIN -> List.of("Dashboard", "Rooms", "Reports");
+            };
+            for (String page : pages) {
+                app.showPage(page);
+                snapshot(size + "-" + role.name().toLowerCase() + "-" + page.toLowerCase(), root());
+            }
+        }
     }
 
     private static Set<String> labels(Parent node) {

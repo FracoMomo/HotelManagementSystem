@@ -19,6 +19,8 @@ public class ReservationsPanel extends VBox {
         table.getColumns().add(Ui.statusColumn("Status", 115, r -> r.status));
         getChildren().addAll(table, Ui.actions(
                 Ui.button("Book Reservation", "book-reservation", true, this::bookReservation),
+                Ui.button("Update Details", "edit-reservation", false, () -> PreviewForms.open(this, "Update Reservation", table.getSelectionModel().getSelectedItem(), false)),
+                Ui.button("Extend Stay", "extend-stay", false, () -> PreviewForms.open(this, "Extend Stay", table.getSelectionModel().getSelectedItem(), false)),
                 Ui.button("Cancel Selected", "cancel-reservation", false, this::cancelReservation)));
         refreshTable();
     }
