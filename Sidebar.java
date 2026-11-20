@@ -1,49 +1,65 @@
-import javax.swing.*;
-import java.awt.*;
+import javafx.application.Platform;
+import javafx.css.PseudoClass;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 
-public class Sidebar extends JPanel {
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class Sidebar extends VBox {
+    private static final PseudoClass ACTIVE = PseudoClass.getPseudoClass("active");
+    private final Map<Button, String> destinations = new LinkedHashMap<>();
 
     public Sidebar(Main main) {
-        setPreferredSize(new Dimension(220, 700));
-        setBackground(new Color(35, 45, 60));
-        setLayout(new GridLayout(8, 1, 5, 8));
-        setBorder(BorderFactory.createEmptyBorder(15, 10, 15, 10));
+        getStyleClass().add("sidebar");
+        setPrefWidth(238);
+        setMinWidth(238);
+        setSpacing(8);
 
-        JLabel logo = new JLabel("HOTEL SYSTEM", SwingConstants.CENTER);
-        logo.setForeground(Color.WHITE);
-        logo.setFont(new Font("Arial", Font.BOLD, 20));
-        add(logo);
+        Label logo = new Label("HOTEL SYSTEM");
+        logo.getStyleClass().add("brand");
+        getChildren().add(logo);
 
-        addMenuButton("Dashboard", "Dashboard", main);
-        addMenuButton("Room Availability", "Rooms", main);
-        addMenuButton("Reservations", "Reservations", main);
-        addMenuButton("Check In / Check Out", "Reception", main);
-        addMenuButton("Payments", "Reception", main);
-        addMenuButton("Reports", "Reports", main);
+        addMenuButton("Dashboard", "Dashboard", "nav-dashboard", main);
+        addMenuButton("Room Availability", "Rooms", "nav-rooms", main);
+        addMenuButton("Reservations", "Reservations", "nav-reservations", main);
+        addMenuButton("Check In / Check Out", "Reception", "nav-reception", main);
+        addMenuButton("Payments", "Reception", "nav-payments", main);
+        addMenuButton("Reports", "Reports", "nav-reports", main);
 
-        JButton exit = new JButton("Exit");
-        style(exit);
-        exit.addActionListener(e -> {
-            int answer = JOptionPane.showConfirmDialog(
-                this, "Are you sure you want to exit?", "Exit",
-                JOptionPane.YES_NO_OPTION
-            );
-            if (answer == JOptionPane.YES_OPTION) System.exit(0);
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        Button exit = Ui.button("Exit", "nav-exit", false, () -> {
+            if (Ui.confirm(this, "Exit", "Are you sure you want to exit?")) Platform.exit();
         });
-        add(exit);
+        exit.getStyleClass().add("nav-button");
+        exit.setMaxWidth(Double.MAX_VALUE);
+        getChildren().addAll(spacer, exit);
     }
 
-    private void addMenuButton(String text, String page, Main main) {
-        JButton button = new JButton(text);
-        style(button);
-        button.addActionListener(e -> main.showPage(page));
-        add(button);
+    private void addMenuButton(String text, String page, String id, Main main) {
+        Button button = new Button(text);
+        button.setId(id);
+        button.setOnAction(event -> {
+            main.showPage(page);
+            // Payments and check-in/out intentionally share the existing reception screen.
+            destinations.keySet().forEach(item -> item.pseudoClassStateChanged(ACTIVE, item == button));
+        });
+        button.getStyleClass().add("nav-button");
+        button.setMaxWidth(Double.MAX_VALUE);
+        destinations.put(button, page);
+        getChildren().add(button);
     }
 
-    private void style(JButton button) {
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(55, 70, 90));
-        button.setFocusPainted(false);
-        button.setFont(new Font("Arial", Font.PLAIN, 14));
+    public void selectPage(String page) {
+        boolean selected = false;
+        for (Map.Entry<Button, String> entry : destinations.entrySet()) {
+            boolean active = !selected && entry.getValue().equals(page);
+            entry.getKey().pseudoClassStateChanged(ACTIVE, active);
+            selected |= active;
+        }
     }
 }
