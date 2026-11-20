@@ -1,121 +1,83 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 
-public class ReservationsPanel extends JPanel {
-
-    private DefaultTableModel model;
+public class ReservationsPanel extends VBox {
+    private final Main main;
+    private final TableView<HotelData.Reservation> table = Ui.table("reservations-table");
 
     public ReservationsPanel(Main main) {
-        setLayout(new BorderLayout(10, 10));
-        setBackground(new Color(245, 247, 250));
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JLabel title = new JLabel("Manage Reservations");
-        title.setFont(new Font("Arial", Font.BOLD, 24));
-        add(title, BorderLayout.NORTH);
-
-        String[] columns = {"ID", "Guest", "Contact", "Room", "Check-in", "Check-out", "Status"};
-        model = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
-
-        JTable table = new JTable(model);
-        table.setRowHeight(28);
-        add(new JScrollPane(table), BorderLayout.CENTER);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton book = new JButton("Book Reservation");
-        JButton cancel = new JButton("Cancel Selected");
-        buttons.add(book);
-        buttons.add(cancel);
-        add(buttons, BorderLayout.SOUTH);
-
-        book.addActionListener(e -> bookReservation());
-        cancel.addActionListener(e -> cancelReservation(table));
+        this.main = main;
+        Ui.page(this, "Manage Reservations");
+        table.getColumns().add(Ui.column("ID", 65, r -> r.id));
+        table.getColumns().add(Ui.column("Guest", 135, r -> r.guest));
+        table.getColumns().add(Ui.column("Contact", 135, r -> r.contact));
+        table.getColumns().add(Ui.column("Room", 65, r -> r.roomNumber));
+        table.getColumns().add(Ui.column("Check-in", 105, r -> r.checkIn));
+        table.getColumns().add(Ui.column("Check-out", 105, r -> r.checkOut));
+        table.getColumns().add(Ui.statusColumn("Status", 115, r -> r.status));
+        getChildren().addAll(table, Ui.actions(
+                Ui.button("Book Reservation", "book-reservation", true, this::bookReservation),
+                Ui.button("Cancel Selected", "cancel-reservation", false, this::cancelReservation)));
         refreshTable();
     }
 
     public void refreshTable() {
-        model.setRowCount(0);
-        for (HotelData.Reservation r : HotelData.reservations) {
-            model.addRow(new Object[]{
-                r.id, r.guest, r.contact, r.roomNumber,
-                r.checkIn, r.checkOut, r.status
-            });
-        }
+        Ui.refresh(table, HotelData.reservations);
     }
 
     private void bookReservation() {
-        JTextField guest = new JTextField();
-        JTextField contact = new JTextField();
-        JTextField room = new JTextField();
-        JTextField checkIn = new JTextField();
-        JTextField checkOut = new JTextField();
-
-        JPanel form = new JPanel(new GridLayout(5, 2, 5, 5));
-        form.add(new JLabel("Guest name:")); form.add(guest);
-        form.add(new JLabel("Contact:")); form.add(contact);
-        form.add(new JLabel("Room number:")); form.add(room);
-        form.add(new JLabel("Check-in date:")); form.add(checkIn);
-        form.add(new JLabel("Check-out date:")); form.add(checkOut);
-
-        int result = JOptionPane.showConfirmDialog(
-            this, form, "New Reservation", JOptionPane.OK_CANCEL_OPTION
-        );
-        if (result != JOptionPane.OK_OPTION) return;
+        TextField guest = new TextField();
+        TextField contact = new TextField();
+        TextField room = new TextField();
+        TextField checkIn = new TextField();
+        TextField checkOut = new TextField();
+        GridPane form = Ui.form();
+        Ui.field(form, 0, "Guest name:", guest, "guest-name");
+        Ui.field(form, 1, "Contact:", contact, "guest-contact");
+        Ui.field(form, 2, "Room number:", room, "reservation-room");
+        Ui.field(form, 3, "Check-in date:", checkIn, "check-in-date");
+        Ui.field(form, 4, "Check-out date:", checkOut, "check-out-date");
+        if (!Ui.showForm(this, "New Reservation", form)) return;
 
         try {
             if (guest.getText().trim().isEmpty()) throw new IllegalArgumentException();
             int roomNumber = Integer.parseInt(room.getText().trim());
             HotelData.Room selectedRoom = HotelData.findRoom(roomNumber);
-
             if (selectedRoom == null || !selectedRoom.status.equals("Available")) {
-                JOptionPane.showMessageDialog(this, "That room is not available.");
+                Ui.message(this, "That room is not available.");
                 return;
             }
             if (checkIn.getText().trim().isEmpty() || checkOut.getText().trim().isEmpty()) {
                 throw new IllegalArgumentException();
             }
-
             HotelData.Reservation reservation = new HotelData.Reservation(
-                HotelData.nextReservationId++,
-                guest.getText().trim(),
-                contact.getText().trim(),
-                roomNumber,
-                checkIn.getText().trim(),
-                checkOut.getText().trim()
-            );
-
+                    HotelData.nextReservationId++, guest.getText().trim(), contact.getText().trim(),
+                    roomNumber, checkIn.getText().trim(), checkOut.getText().trim());
             HotelData.reservations.add(reservation);
             selectedRoom.status = "Reserved";
-            refreshTable();
-            JOptionPane.showMessageDialog(this, "Reservation created. ID: " + reservation.id);
+            main.refreshAll();
+            Ui.message(this, "Reservation created. ID: " + reservation.id);
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter valid reservation details.");
+            Ui.message(this, "Please enter valid reservation details.");
         }
     }
 
-    private void cancelReservation(JTable table) {
-        int row = table.getSelectedRow();
-        if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Select a reservation first.");
+    private void cancelReservation() {
+        HotelData.Reservation reservation = table.getSelectionModel().getSelectedItem();
+        if (reservation == null) {
+            Ui.message(this, "Select a reservation first.");
             return;
         }
-
-        int id = (int) model.getValueAt(row, 0);
-        HotelData.Reservation r = HotelData.findReservation(id);
-
-        if (r.status.equals("Checked In") || r.status.equals("Checked Out")) {
-            JOptionPane.showMessageDialog(this, "This reservation can no longer be cancelled.");
+        if (reservation.status.equals("Checked In") || reservation.status.equals("Checked Out")) {
+            Ui.message(this, "This reservation can no longer be cancelled.");
             return;
         }
-
-        r.status = "Cancelled";
-        HotelData.Room room = HotelData.findRoom(r.roomNumber);
+        reservation.status = "Cancelled";
+        HotelData.Room room = HotelData.findRoom(reservation.roomNumber);
         if (room != null && room.status.equals("Reserved")) room.status = "Available";
-
-        refreshTable();
-        JOptionPane.showMessageDialog(this, "Reservation cancelled.");
+        main.refreshAll();
+        Ui.message(this, "Reservation cancelled.");
     }
 }

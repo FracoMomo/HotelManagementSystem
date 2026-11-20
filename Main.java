@@ -1,48 +1,57 @@
-import javax.swing.*;
-import java.awt.*;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 
-public class Main extends JFrame {
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-    private CardLayout cardLayout;
-    private JPanel content;
-
+public class Main extends Application {
+    private BorderPane root;
+    private Sidebar sidebar;
+    private final Map<String, javafx.scene.Node> pages = new LinkedHashMap<>();
     private Dashboard dashboard;
     private RoomsPanel roomsPanel;
     private ReservationsPanel reservationsPanel;
     private ReceptionPanel receptionPanel;
     private ReportsPanel reportsPanel;
 
-    public Main() {
-        setTitle("Hotel Management System");
-        setSize(1100, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
-
-        cardLayout = new CardLayout();
-        content = new JPanel(cardLayout);
-
+    @Override
+    public void start(Stage stage) {
         dashboard = new Dashboard(this);
         roomsPanel = new RoomsPanel(this);
         reservationsPanel = new ReservationsPanel(this);
         receptionPanel = new ReceptionPanel(this);
         reportsPanel = new ReportsPanel(this);
 
-        content.add(dashboard, "Dashboard");
-        content.add(roomsPanel, "Rooms");
-        content.add(reservationsPanel, "Reservations");
-        content.add(receptionPanel, "Reception");
-        content.add(reportsPanel, "Reports");
+        pages.put("Dashboard", dashboard);
+        pages.put("Rooms", roomsPanel);
+        pages.put("Reservations", reservationsPanel);
+        pages.put("Reception", receptionPanel);
+        pages.put("Reports", reportsPanel);
 
-        add(new Sidebar(this), BorderLayout.WEST);
-        add(content, BorderLayout.CENTER);
-
+        sidebar = new Sidebar(this);
+        root = new BorderPane();
+        root.setLeft(sidebar);
+        Scene scene = new Scene(root, 1100, 700);
+        Ui.applyStyles(scene);
+        stage.setTitle("Hotel Management System");
+        stage.setMinWidth(1000);
+        stage.setMinHeight(620);
+        stage.setScene(scene);
+        stage.setOnCloseRequest(event -> {
+            if (!Ui.confirm(root, "Exit", "Are you sure you want to exit?")) event.consume();
+        });
         showPage("Dashboard");
+        stage.show();
+        stage.centerOnScreen();
     }
 
     public void showPage(String page) {
+        if (!pages.containsKey(page)) return;
         refreshAll();
-        cardLayout.show(content, page);
+        root.setCenter(pages.get(page));
+        sidebar.selectPage(page);
     }
 
     public void refreshAll() {
@@ -54,6 +63,6 @@ public class Main extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new Main().setVisible(true));
+        launch(args);
     }
 }

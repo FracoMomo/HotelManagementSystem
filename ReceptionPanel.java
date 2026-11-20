@@ -1,111 +1,76 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
 
-public class ReceptionPanel extends JPanel {
-
-    private DefaultTableModel model;
+public class ReceptionPanel extends VBox {
+    private final Main main;
+    private final TableView<HotelData.Reservation> table = Ui.table("reception-table");
 
     public ReceptionPanel(Main main) {
-        setLayout(new BorderLayout(10, 10));
-        setBackground(new Color(245, 247, 250));
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JLabel title = new JLabel("Reception: Check-in, Check-out and Payments");
-        title.setFont(new Font("Arial", Font.BOLD, 22));
-        add(title, BorderLayout.NORTH);
-
-        String[] columns = {"ID", "Guest", "Room", "Status", "Paid"};
-        model = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
-
-        JTable table = new JTable(model);
-        table.setRowHeight(30);
-        add(new JScrollPane(table), BorderLayout.CENTER);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton checkIn = new JButton("Check In");
-        JButton checkOut = new JButton("Check Out");
-        JButton payment = new JButton("Record Payment");
-        buttons.add(checkIn);
-        buttons.add(checkOut);
-        buttons.add(payment);
-        add(buttons, BorderLayout.SOUTH);
-
-        checkIn.addActionListener(e -> updateStatus(table, "Check In"));
-        checkOut.addActionListener(e -> updateStatus(table, "Check Out"));
-        payment.addActionListener(e -> recordPayment(table));
+        this.main = main;
+        Ui.page(this, "Reception: Check-in, Check-out and Payments");
+        table.getColumns().add(Ui.column("ID", 80, r -> r.id));
+        table.getColumns().add(Ui.column("Guest", 220, r -> r.guest));
+        table.getColumns().add(Ui.column("Room", 90, r -> r.roomNumber));
+        table.getColumns().add(Ui.statusColumn("Status", 170, r -> r.status));
+        table.getColumns().add(Ui.moneyColumn("Paid", 160, r -> r.payment));
+        getChildren().addAll(table, Ui.actions(
+                Ui.button("Check In", "check-in", true, () -> updateStatus("Check In")),
+                Ui.button("Check Out", "check-out", false, () -> updateStatus("Check Out")),
+                Ui.button("Record Payment", "record-payment", false, this::recordPayment)));
         refreshTable();
     }
 
     public void refreshTable() {
-        model.setRowCount(0);
-        for (HotelData.Reservation r : HotelData.reservations) {
-            model.addRow(new Object[]{
-                r.id, r.guest, r.roomNumber, r.status,
-                String.format("₱%,.2f", r.payment)
-            });
-        }
+        Ui.refresh(table, HotelData.reservations);
     }
 
-    private HotelData.Reservation selectedReservation(JTable table) {
-        int row = table.getSelectedRow();
-        if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a reservation.");
-            return null;
-        }
-        int id = (int) model.getValueAt(row, 0);
-        return HotelData.findReservation(id);
+    private HotelData.Reservation selectedReservation() {
+        HotelData.Reservation reservation = table.getSelectionModel().getSelectedItem();
+        if (reservation == null) Ui.message(this, "Please select a reservation.");
+        return reservation;
     }
 
-    private void updateStatus(JTable table, String action) {
-        HotelData.Reservation r = selectedReservation(table);
-        if (r == null) return;
-
-        HotelData.Room room = HotelData.findRoom(r.roomNumber);
-
+    private void updateStatus(String action) {
+        HotelData.Reservation reservation = selectedReservation();
+        if (reservation == null) return;
+        HotelData.Room room = HotelData.findRoom(reservation.roomNumber);
         if (action.equals("Check In")) {
-            if (!r.status.equals("Reserved")) {
-                JOptionPane.showMessageDialog(this, "Only reserved guests can check in.");
+            if (!reservation.status.equals("Reserved")) {
+                Ui.message(this, "Only reserved guests can check in.");
                 return;
             }
-            r.status = "Checked In";
+            reservation.status = "Checked In";
             room.status = "Occupied";
         } else {
-            if (!r.status.equals("Checked In")) {
-                JOptionPane.showMessageDialog(this, "Only checked-in guests can check out.");
+            if (!reservation.status.equals("Checked In")) {
+                Ui.message(this, "Only checked-in guests can check out.");
                 return;
             }
-            r.status = "Checked Out";
+            reservation.status = "Checked Out";
             room.status = "Available";
         }
-
-        refreshTable();
-        JOptionPane.showMessageDialog(this, action + " completed.");
+        main.refreshAll();
+        Ui.message(this, action + " completed.");
     }
 
-    private void recordPayment(JTable table) {
-        HotelData.Reservation r = selectedReservation(table);
-        if (r == null) return;
-
-        if (r.status.equals("Cancelled")) {
-            JOptionPane.showMessageDialog(this, "Cannot record payment for a cancelled reservation.");
+    private void recordPayment() {
+        HotelData.Reservation reservation = selectedReservation();
+        if (reservation == null) return;
+        if (reservation.status.equals("Cancelled")) {
+            Ui.message(this, "Cannot record payment for a cancelled reservation.");
             return;
         }
-
-        String value = JOptionPane.showInputDialog(this, "Enter payment amount:");
-        if (value == null) return;
-
+        var value = Ui.input(this, "Enter payment amount:");
+        if (value.isEmpty()) return;
         try {
-            double amount = Double.parseDouble(value.trim());
-            if (amount <= 0) throw new NumberFormatException();
-
-            r.payment += amount;
-            refreshTable();
-            JOptionPane.showMessageDialog(this, "Payment recorded successfully.");
+            double amount = Double.parseDouble(value.get().trim());
+            if (!Double.isFinite(amount) || amount <= 0
+                    || !Double.isFinite(reservation.payment + amount)) throw new NumberFormatException();
+            reservation.payment += amount;
+            main.refreshAll();
+            Ui.message(this, "Payment recorded successfully.");
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Enter a valid payment amount.");
+            Ui.message(this, "Enter a valid payment amount.");
         }
     }
 }

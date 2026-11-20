@@ -1,0 +1,125 @@
+.root {
+    -fx-font-family: "System";
+    -fx-font-size: 13px;
+    -fx-background-color: #f4f6f8;
+    -fx-text-base-color: #243549;
+    -fx-accent: #16786f;
+    -fx-focus-color: #16786f;
+    -fx-faint-focus-color: #16786f22;
+}
+.label { -fx-text-fill: #243549; }
+.sidebar {
+    -fx-background-color: #172b3a;
+    -fx-padding: 32 16 20 16;
+}
+.brand {
+    -fx-text-fill: #f3f8fa;
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 12 34 12;
+}
+.button {
+    -fx-background-color: white;
+    -fx-text-fill: #243549;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: #d5dde4;
+    -fx-padding: 11 18;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+.button:hover { -fx-background-color: #eaf0f3; }
+.button:focused { -fx-border-color: #16786f; -fx-border-width: 2; -fx-padding: 10 17; }
+.button:pressed { -fx-background-color: #dce7eb; }
+.primary-button, .hotel-dialog .button:default {
+    -fx-background-color: #16786f;
+    -fx-border-color: #16786f;
+    -fx-text-fill: white;
+}
+.primary-button:hover, .hotel-dialog .button:default:hover { -fx-background-color: #11635c; }
+.primary-button:focused { -fx-border-color: #78c9bd; }
+.sidebar .nav-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #becbd4;
+    -fx-alignment: center-left;
+    -fx-font-weight: normal;
+    -fx-padding: 14 14;
+}
+.sidebar .nav-button:hover { -fx-background-color: #243e50; -fx-text-fill: white; }
+.sidebar .nav-button:active {
+    -fx-background-color: #285149;
+    -fx-text-fill: #f0fffa;
+    -fx-font-weight: bold;
+}
+.sidebar .nav-button:focused { -fx-border-color: #78c9bd; -fx-border-width: 1; }
+.page { -fx-padding: 34 30 28 30; -fx-background-color: #f4f6f8; }
+.page-title { -fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: #172b3a; }
+.subtitle, .metric-heading { -fx-text-fill: #667789; -fx-font-size: 13px; }
+.metric-card {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-border-color: #e1e7eb;
+    -fx-border-radius: 8;
+    -fx-padding: 24;
+}
+.metric-value { -fx-font-size: 31px; -fx-font-weight: bold; -fx-text-fill: #172b3a; }
+#available-rooms, #revenue { -fx-text-fill: #16786f; }
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: #dfe5ea;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 0;
+    -fx-fixed-cell-size: 49;
+    -fx-selection-bar: #e2f1ee;
+    -fx-selection-bar-non-focused: #eaf2f1;
+}
+.table-view:focused { -fx-border-color: #16786f; }
+.table-view .column-header-background, .table-view .filler { -fx-background-color: #edf1f4; }
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #dfe5ea transparent;
+    -fx-padding: 14 0;
+}
+.table-view .column-header .label {
+    -fx-alignment: center-left;
+    -fx-padding: 0 12;
+    -fx-font-size: 11px;
+    -fx-text-fill: #576b7b;
+    -fx-font-weight: bold;
+}
+.table-row-cell { -fx-background-color: white; -fx-border-color: transparent transparent #edf1f4 transparent; }
+.table-row-cell:odd { -fx-background-color: #fbfcfd; }
+.table-row-cell:hover:filled { -fx-background-color: #f0f7f6; }
+.table-row-cell:selected { -fx-background-color: #e2f1ee; }
+.table-row-cell:empty { -fx-background-color: white; -fx-border-color: transparent; }
+.table-view .table-cell {
+    -fx-border-color: transparent;
+    -fx-padding: 0 12;
+    -fx-alignment: center-left;
+    -fx-text-fill: #243549;
+    -fx-font-size: 12px;
+}
+.status-badge { -fx-padding: 5 9; -fx-background-radius: 4; -fx-font-size: 11px; -fx-font-weight: bold; }
+.status-green { -fx-background-color: #e2f2eb; -fx-text-fill: #226746; }
+.status-amber { -fx-background-color: #fff1d7; -fx-text-fill: #805916; }
+.status-blue { -fx-background-color: #e4edf9; -fx-text-fill: #315c89; }
+.status-neutral { -fx-background-color: #edf0f3; -fx-text-fill: #626e7b; }
+.report { -fx-background-color: white; -fx-border-color: #dfe5ea; -fx-border-radius: 6; -fx-background-radius: 6; }
+.report-row { -fx-padding: 25 26; -fx-font-size: 15px; -fx-border-color: transparent transparent #e8edf1 transparent; }
+.report-revenue { -fx-font-weight: bold; -fx-text-fill: #16786f; -fx-border-color: transparent; }
+.hotel-dialog { -fx-background-color: #f4f6f8; -fx-padding: 20; }
+.hotel-dialog > .content { -fx-padding: 10 0 24 0; }
+.hotel-dialog .graphic-container { -fx-padding: 10 14 0 0; }
+.hotel-dialog .form { -fx-padding: 8 0 18 0; }
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: #cdd7df;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-padding: 10 12;
+}
+.text-field:focused { -fx-border-color: #16786f; }
+.scroll-bar { -fx-background-color: #f4f6f8; }
+.scroll-bar .thumb { -fx-background-color: #bccad3; -fx-background-radius: 6; }

@@ -1,97 +1,67 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
 
-public class RoomsPanel extends JPanel {
-
-    private DefaultTableModel model;
+public class RoomsPanel extends VBox {
+    private final Main main;
+    private final TableView<HotelData.Room> table = Ui.table("rooms-table");
 
     public RoomsPanel(Main main) {
-        setLayout(new BorderLayout(10, 10));
-        setBackground(new Color(245, 247, 250));
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JLabel title = new JLabel("Room Availability and Management");
-        title.setFont(new Font("Arial", Font.BOLD, 24));
-        add(title, BorderLayout.NORTH);
-
-        String[] columns = {"Room Number", "Room Type", "Rate", "Status"};
-        model = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
-
-        JTable table = new JTable(model);
-        table.setRowHeight(30);
-        add(new JScrollPane(table), BorderLayout.CENTER);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton addRoom = new JButton("Add Room");
-        JButton changeRate = new JButton("Update Selected Rate");
-        buttons.add(addRoom);
-        buttons.add(changeRate);
-        add(buttons, BorderLayout.SOUTH);
-
-        addRoom.addActionListener(e -> addRoom());
-        changeRate.addActionListener(e -> updateRate(table));
+        this.main = main;
+        Ui.page(this, "Room Availability and Management");
+        table.getColumns().add(Ui.column("Room Number", 150, room -> room.number));
+        table.getColumns().add(Ui.column("Room Type", 200, room -> room.type));
+        table.getColumns().add(Ui.moneyColumn("Rate", 170, room -> room.rate));
+        table.getColumns().add(Ui.statusColumn("Status", 180, room -> room.status));
+        getChildren().addAll(table, Ui.actions(
+                Ui.button("Add Room", "add-room", true, this::addRoom),
+                Ui.button("Update Selected Rate", "update-rate", false, this::updateRate)));
         refreshTable();
     }
 
     public void refreshTable() {
-        model.setRowCount(0);
-        for (HotelData.Room room : HotelData.rooms) {
-            model.addRow(new Object[]{
-                room.number, room.type, String.format("₱%,.2f", room.rate), room.status
-            });
-        }
+        Ui.refresh(table, HotelData.rooms);
     }
 
     private void addRoom() {
         try {
-            String numberText = JOptionPane.showInputDialog(this, "Room number:");
-            if (numberText == null) return;
-            int number = Integer.parseInt(numberText.trim());
-
+            var numberText = Ui.input(this, "Room number:");
+            if (numberText.isEmpty()) return;
+            int number = Integer.parseInt(numberText.get().trim());
             if (HotelData.findRoom(number) != null) {
-                JOptionPane.showMessageDialog(this, "Room number already exists.");
+                Ui.message(this, "Room number already exists.");
                 return;
             }
+            var type = Ui.input(this, "Room type (Single, Double, Deluxe, Suite):");
+            if (type.isEmpty() || type.get().trim().isEmpty()) return;
+            var rateText = Ui.input(this, "Room rate:");
+            if (rateText.isEmpty()) return;
+            double rate = Double.parseDouble(rateText.get().trim());
+            if (!Double.isFinite(rate) || rate < 0) throw new NumberFormatException();
 
-            String type = JOptionPane.showInputDialog(this, "Room type (Single, Double, Deluxe, Suite):");
-            if (type == null || type.trim().isEmpty()) return;
-
-            String rateText = JOptionPane.showInputDialog(this, "Room rate:");
-            if (rateText == null) return;
-            double rate = Double.parseDouble(rateText.trim());
-
-            if (rate < 0) throw new NumberFormatException();
-
-            HotelData.rooms.add(new HotelData.Room(number, type.trim(), rate, "Available"));
-            refreshTable();
-            JOptionPane.showMessageDialog(this, "Room added successfully.");
+            HotelData.rooms.add(new HotelData.Room(number, type.get().trim(), rate, "Available"));
+            main.refreshAll();
+            Ui.message(this, "Room added successfully.");
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid room number and rate.");
+            Ui.message(this, "Please enter a valid room number and rate.");
         }
     }
 
-    private void updateRate(JTable table) {
-        int row = table.getSelectedRow();
-        if (row == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a room.");
+    private void updateRate() {
+        HotelData.Room room = table.getSelectionModel().getSelectedItem();
+        if (room == null) {
+            Ui.message(this, "Please select a room.");
             return;
         }
-
-        int roomNumber = (int) model.getValueAt(row, 0);
-        String value = JOptionPane.showInputDialog(this, "Enter new room rate:");
-        if (value == null) return;
-
+        var value = Ui.input(this, "Enter new room rate:");
+        if (value.isEmpty()) return;
         try {
-            double rate = Double.parseDouble(value.trim());
-            if (rate < 0) throw new NumberFormatException();
-            HotelData.findRoom(roomNumber).rate = rate;
-            refreshTable();
-            JOptionPane.showMessageDialog(this, "Room rate updated.");
+            double rate = Double.parseDouble(value.get().trim());
+            if (!Double.isFinite(rate) || rate < 0) throw new NumberFormatException();
+            room.rate = rate;
+            main.refreshAll();
+            Ui.message(this, "Room rate updated.");
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Enter a valid amount.");
+            Ui.message(this, "Enter a valid amount.");
         }
     }
 }
